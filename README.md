@@ -1,17 +1,27 @@
 # Encrypted State-Feedback Control Simulation
 
-Software simulation of a state-feedback controller executing on homomorphic encrypted data.
+Software simulation of a state-feedback controller executing on homomorphically encrypted data.
 
 ## Overview
 
-This project demonstrates encrypted state-feedback control using CKKS (Cheon-Kim-Kim-Song) homomorphic encryption. The core operation is the control law `u = -Kx`, where the state vector `x` is encrypted before the computation.
+This project demonstrates encrypted state-feedback control using CKKS (Cheon-Kim-Kim-Song) homomorphic encryption.
+
+The basic control law is:
+
+    u = -Kx
+
+where `x` is the system state and `K` is the state-feedback gain.
+
+In the encrypted version, the state is encrypted before the controller computation:
+
+    Enc(x) · (-K) = Enc(u)
 
 The simulation includes:
 
 - A simple state-space plant model (2-state system)
 - State-feedback gain calculation
-- Plaintext controller (reference)
-- Encrypted controller using TenSEAL
+- Plaintext controller as a reference
+- Encrypted controller using TenSEAL / CKKS
 - Correctness and timing analysis
 - Comparison plots
 
@@ -22,8 +32,16 @@ The simulation includes:
 
 ## Installation
 
+Install the required packages:
+
 ```bash
 pip install tenseal scipy matplotlib numpy
+```
+
+If `pip` is not recognized:
+
+```bash
+python -m pip install tenseal scipy matplotlib numpy
 ```
 
 ## Running
@@ -32,16 +50,47 @@ From the project root:
 
 ```bash
 cd controller_sim
+```
+
+### Run the complete simulation
+
+```bash
 python compare_and_plot.py
 ```
 
-or with `python3`:
+or:
 
 ```bash
 python3 compare_and_plot.py
 ```
 
-This runs both plaintext and encrypted simulations and generates results in `results/`.
+This runs the plaintext and encrypted simulations, compares their results, and generates the plots and numerical summary in `results/`.
+
+### Run only the encrypted controller
+
+To directly see the CKKS encrypted controller execution:
+
+```bash
+python encrypted_sim.py
+```
+
+or:
+
+```bash
+python3 encrypted_sim.py
+```
+
+This prints the execution of each control step, including:
+
+- State being encrypted
+- CKKS encryption
+- Homomorphic computation `Enc(x) · (-K)`
+- Encrypted control result
+- Decryption
+- Control value applied to the plant
+- Encryption / HE / decryption timing
+
+The plaintext `u = -Kx` calculation is also performed internally as a correctness check, but it is not used to generate the encrypted result or update the plant.
 
 ## Project structure
 
@@ -55,7 +104,7 @@ controller_sim/
 results/
 ├── state_response.png      # State trajectory comparison
 ├── control_signal.png      # Control input over time
-├── error_vs_step.png       # Encryption error magnitude
+├── error_vs_step.png       # HE approximation error
 ├── timing_breakdown.png    # Operation timing
 └── summary.txt             # Numerical results
 ```
@@ -65,40 +114,77 @@ results/
 Each control step follows this flow:
 
 ```
-Plaintext state x
+Simulated state x
     ↓
-Encrypt (CKKS)
+CKKS encryption
     ↓
-Homomorphic computation: Enc(x) · (-K)
+Encrypted state Enc(x)
+    ↓
+Homomorphic computation
+Enc(x) · (-K)
+    ↓
+Encrypted control Enc(u)
     ↓
 Decrypt
     ↓
-Apply control u to plant
+Control u
     ↓
-Measure next state
+Update plant
+    ↓
+Next state
 ```
 
-The encrypted and plaintext versions run in parallel for comparison.
+The plaintext controller is used separately as a reference so that the decrypted HE result can be checked for correctness.
+
+The actual control signal used to update the encrypted simulation comes from the decrypted homomorphic result.
 
 ## Understanding the results
 
-**state_response.png** — Overlay of plaintext and encrypted state trajectories. Should be nearly identical.
+**state_response.png** — Overlay of plaintext and encrypted state trajectories. The two responses should be nearly identical.
 
-**control_signal.png** — Control input magnitude over time. Starts high (state far from equilibrium), decays toward zero.
+**control_signal.png** — Control input over time. It starts relatively high because the initial state is away from equilibrium, then approaches zero as the feedback controller stabilizes the system.
 
-**error_vs_step.png** — Pointwise difference between encrypted and plaintext control. Represents CKKS approximation error; should be small.
+**error_vs_step.png** — Difference between the decrypted HE control result and the independent plaintext reference. This represents the numerical approximation error introduced by CKKS.
 
-**timing_breakdown.png** — Duration of encrypt, compute, and decrypt operations per step.
+**timing_breakdown.png** — Time spent on encryption, the homomorphic computation, and decryption for each control step.
 
-**summary.txt** — Final state values, control error magnitude, mean operation times.
+**summary.txt** — Contains the final state, control error, and average operation timings.
 
 ## Why CKKS?
 
-CKKS supports approximate arithmetic on real and complex numbers, making it suitable for continuous-valued state and control signals. Unlike BFV (which handles integers), CKKS naturally handles floating-point gain matrices and state vectors.
+BFV is designed for exact modular integer arithmetic, while CKKS supports approximate arithmetic on real and complex values.
+
+The state-feedback controller uses real-valued states and gains, for example:
+
+```
+K = [18.0, 8.5]
+```
+
+Therefore, CKKS is more suitable for this simulation.
+
+TenSEAL provides the Python interface used here, with Microsoft SEAL as the underlying homomorphic encryption library.
 
 ## Notes
 
-- Each control step encrypts the current state independently; the simulation does not accumulate noise across steps.
-- CKKS approximation error is expected and typically in the range of 1e-5 to 1e-6 for this problem.
-- The plant dynamics are simulated in plaintext; only the controller computation is encrypted.
-- Runtime depends on CKKS parameter choice; larger polynomial degrees and coefficient moduli increase security but reduce speed.
+- Each control step encrypts the current state independently.
+- The simulation does not repeatedly operate on the same ciphertext across control steps, so the 100 control steps should not be interpreted as cumulative noise growth in a single ciphertext.
+- CKKS performs approximate arithmetic, so a small difference between the decrypted HE result and the plaintext reference is expected.
+- The approximation error is measured directly from the simulation rather than assuming a fixed error range.
+- The plant dynamics are simulated in plaintext; the state-feedback controller computation is the part performed homomorphically.
+- Runtime depends on the CKKS parameters. Larger polynomial degrees and coefficient moduli can increase computational cost.
+
+## Current scope
+
+This is a software proof-of-concept for the encrypted controller.
+
+The current implementation demonstrates:
+
+- State-space modelling
+- State-feedback control
+- CKKS encryption
+- Homomorphic controller computation
+- Decryption of the control signal
+- Correctness comparison
+- Timing analysis
+
+FPGA implementation and hardware-level optimizations such as NTT acceleration, pipelining, parallelism, and resource optimization are outside the scope of this simulation.
