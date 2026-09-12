@@ -1,0 +1,68 @@
+========================================================================
+CKKS ENCRYPTED STATE-FEEDBACK CONTROL SYSTEM
+========================================================================
+
+1. PLANT
+Mass-spring-damper: m=1 kg, c=0.5 Ns/m, k=2 N/m
+A =
+[[ 0.   1. ]
+ [-2.  -0.5]]
+
+B =
+[[0.]
+ [1.]]
+
+Open-loop poles: [-0.25+1.39194109j -0.25-1.39194109j]
+
+2. CONTROLLER
+Control law: u(k) = -K x(k)
+K = [[18.   8.5]]
+Desired continuous closed-loop poles: [-4, -5]
+Actual continuous closed-loop poles: [-4.+0.j -5.+0.j]
+
+3. DISCRETIZATION
+Sampling time: 0.05 s
+Ad =
+[[ 0.99752173  0.04933904]
+ [-0.09867807  0.97285222]]
+
+Bd =
+[[0.00123913]
+ [0.04933904]]
+
+4. CKKS CONFIGURATION
+Polynomial modulus degree: 8192
+Coefficient modulus bits: [60, 40, 40, 60]
+Global scale: 2^40
+Library: TenSEAL (Microsoft SEAL backend)
+
+5. SIMULATION
+Control cycles: 100
+Initial state: [1.0, 0.0]
+Final plaintext state: [ 6.98050967e-08 -2.37976944e-07]
+Final encrypted-controller state: [ 3.65454770e-08 -2.38383904e-07]
+
+6. ACCURACY
+Maximum state error: 1.764031998989e-07
+Maximum control error: 3.081913945380e-06
+
+7. HE TIMING
+Average encryption: 4.823226 ms/step
+Average HE dot product: 3.712565 ms/step
+Average decryption: 1.435686 ms/step
+Total: 9.971478 ms/step
+
+8. FILES
+control_data.csv      - combined numerical results
+execution_trace.csv   - step-by-step execution trace
+state_response.png    - state comparison
+control_signal.png    - control comparison
+error_vs_step.png     - CKKS numerical error
+timing_breakdown.png  - HE timing
+
+9. INTERPRETATION
+The controller computes the state-feedback dot product using
+a CKKS ciphertext and a plaintext gain vector. Only the resulting
+control signal is decrypted before it is applied to the simulated
+plant. The plaintext controller is retained as a baseline so the
+effect of CKKS approximation can be quantified.

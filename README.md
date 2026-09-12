@@ -1,74 +1,104 @@
 # Encrypted State-Feedback Control Simulation
 
-This completes the task assigned by Prof. Ameer Mulla:
-1. Model a dummy control system using state-space realization
-2. Design a state feedback controller
-3. Simulate it with homomorphic encryption applied on the controller side
+Software simulation of a state-feedback controller executing on homomorphic encrypted data.
 
-It is a **Python** implementation (no compiling, no SEAL build needed —
-runs on any laptop in ~2 minutes of setup) that sits alongside your
-existing `HE_Project/` (BFV, C++) work in the repo.
+## Overview
 
-## Folder structure
-```
-project/
-├── README.md                    <- this file
-├── VIVA_CHEAT_SHEET.md          <- what to SAY tomorrow, plain English
-├── controller_sim/
-│   ├── state_space_model.py     <- plant + state feedback (K) design
-│   ├── plaintext_sim.py         <- normal (unencrypted) closed-loop sim
-│   ├── encrypted_sim.py         <- HE closed-loop sim (TenSEAL / CKKS)
-│   └── compare_and_plot.py      <- RUN THIS. Produces all plots + report
-└── results/                     <- generated output (already included)
-    ├── state_response.png
-    ├── control_signal.png
-    ├── error_vs_step.png
-    ├── timing_breakdown.png
-    └── summary.txt
-```
+This project demonstrates encrypted state-feedback control using CKKS (Cheon-Kim-Kim-Song) homomorphic encryption. The core operation is the control law `u = -Kx`, where the state vector `x` is encrypted before the computation.
 
-The `results/` folder already has everything generated and ready to
-screenshot into slides — you do NOT have to run anything if you're
-short on time. But if you want to reproduce/tweak it:
+The simulation includes:
 
-## How to run
+- A simple state-space plant model (2-state system)
+- State-feedback gain calculation
+- Plaintext controller (reference)
+- Encrypted controller using TenSEAL
+- Correctness and timing analysis
+- Comparison plots
+
+## Prerequisites
+
+- Python 3.7+
+- `pip` or equivalent package manager
+
+## Installation
 
 ```bash
-# one-time setup (~1-2 min)
 pip install tenseal scipy matplotlib numpy
+```
 
-# run everything
-cd project/controller_sim
+## Running
+
+From the project root:
+
+```bash
+cd controller_sim
+python compare_and_plot.py
+```
+
+or with `python3`:
+
+```bash
 python3 compare_and_plot.py
 ```
 
-That's it. It will print the state-space model, controller gain,
-accuracy comparison, and regenerate all plots + `summary.txt` into
-`../results/`.
+This runs both plaintext and encrypted simulations and generates results in `results/`.
 
-## What this demonstrates (map to your project objectives slide)
+## Project structure
 
-| Objective (from slides)      | Where it's done |
-|---|---|
-| 1. Homomorphic Encryption study | `encrypted_sim.py` — CKKS via TenSEAL/Microsoft SEAL |
-| 2. Understand FPGA/system architecture | existing `HE_Project/` (BFV, C++) |
-| 3. Identify bottleneck | `timing_breakdown.png` — encrypt/HE-op/decrypt cost per control step |
-| 4. Optimize performance | Discussion point: this Python sim validates correctness; FPGA/NTT optimization (literature survey) is the next stage |
+```
+controller_sim/
+├── state_space_model.py    # Plant model and controller gain
+├── plaintext_sim.py        # Baseline (unencrypted) controller
+├── encrypted_sim.py        # CKKS encrypted controller
+└── compare_and_plot.py     # Run both and generate plots
 
-## Why CKKS instead of BFV here
+results/
+├── state_response.png      # State trajectory comparison
+├── control_signal.png      # Control input over time
+├── error_vs_step.png       # Encryption error magnitude
+├── timing_breakdown.png    # Operation timing
+└── summary.txt             # Numerical results
+```
 
-Your existing `HE_Project` uses **BFV**, which only supports encrypted
-**integer** arithmetic (hence the `10, 20` example). A real state
-feedback controller needs **real-valued** states and gains (e.g.
-`K = [18.0, 8.5]`), so this simulation uses **CKKS**, the homomorphic
-scheme designed for approximate real-number arithmetic — same
-underlying Microsoft SEAL library, different scheme, chosen because
-it matches the actual math of `u(k) = K·x(k)`.
+## How it works
 
-## Key result
+Each control step follows this flow:
 
-The encrypted controller reproduces the plaintext controller's
-closed-loop response to within `~1.3e-7` — i.e. the plant is
-controlled correctly even though the controller never sees the
-plaintext state, only encrypted ciphertexts. See
-`results/state_response.png`.
+```
+Plaintext state x
+    ↓
+Encrypt (CKKS)
+    ↓
+Homomorphic computation: Enc(x) · (-K)
+    ↓
+Decrypt
+    ↓
+Apply control u to plant
+    ↓
+Measure next state
+```
+
+The encrypted and plaintext versions run in parallel for comparison.
+
+## Understanding the results
+
+**state_response.png** — Overlay of plaintext and encrypted state trajectories. Should be nearly identical.
+
+**control_signal.png** — Control input magnitude over time. Starts high (state far from equilibrium), decays toward zero.
+
+**error_vs_step.png** — Pointwise difference between encrypted and plaintext control. Represents CKKS approximation error; should be small.
+
+**timing_breakdown.png** — Duration of encrypt, compute, and decrypt operations per step.
+
+**summary.txt** — Final state values, control error magnitude, mean operation times.
+
+## Why CKKS?
+
+CKKS supports approximate arithmetic on real and complex numbers, making it suitable for continuous-valued state and control signals. Unlike BFV (which handles integers), CKKS naturally handles floating-point gain matrices and state vectors.
+
+## Notes
+
+- Each control step encrypts the current state independently; the simulation does not accumulate noise across steps.
+- CKKS approximation error is expected and typically in the range of 1e-5 to 1e-6 for this problem.
+- The plant dynamics are simulated in plaintext; only the controller computation is encrypted.
+- Runtime depends on CKKS parameter choice; larger polynomial degrees and coefficient moduli increase security but reduce speed.
