@@ -40,17 +40,17 @@ Library: TenSEAL (Microsoft SEAL backend)
 Control cycles: 100
 Initial state: [1.0, 0.0]
 Final plaintext state: [ 6.98050967e-08 -2.37976944e-07]
-Final encrypted-controller state: [ 3.65454770e-08 -2.38383904e-07]
+Final encrypted-controller state: [ 5.29815636e-08 -2.38746154e-07]
 
 6. ACCURACY
-Maximum state error: 1.764031998989e-07
-Maximum control error: 3.081913945380e-06
+Maximum state error: 1.501706927430e-07
+Maximum control error: 2.749888803777e-06
 
 7. HE TIMING
-Average encryption: 4.823226 ms/step
-Average HE dot product: 3.712565 ms/step
-Average decryption: 1.435686 ms/step
-Total: 9.971478 ms/step
+Average encryption: 4.591330 ms/step
+Average HE dot product: 3.554277 ms/step
+Average decryption: 1.295115 ms/step
+Total: 9.440722 ms/step
 
 8. FILES
 control_data.csv      - combined numerical results
